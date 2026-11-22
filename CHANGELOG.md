@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 0.1.0 correction
+
+- Resolve environment and APISIX secret-manager API key references explicitly for decisions, verification-key fetches and outcome reports, including standalone YAML mode.
+- Fail closed without HTTP when a key cannot be resolved; never transmit the literal reference or expose provider errors.
+- Use the public mock credential in all four integration fixture routes; add key-resolution regression tests.
+
 ## 0.1.0
 
 First release, equivalent to kong-plugin-agent-guard 0.2.0:

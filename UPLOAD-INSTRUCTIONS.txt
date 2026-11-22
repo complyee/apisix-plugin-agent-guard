@@ -1,0 +1,17 @@
+APISIX 0.1.0 correction (ZIP revision 2)
+
+1. Extract this ZIP. Open its apisix-plugin-agent-guard folder.
+2. Open https://github.com/complyee/apisix-plugin-agent-guard
+3. Choose Add file > Upload files. Drag the apisix and spec folders,
+   README.md and CHANGELOG.md into the upload area. These replace matching files.
+   Do not upload the enclosing apisix-plugin-agent-guard folder.
+4. Commit changes with the message: Fix standalone API key resolution.
+5. Open Actions and check both test and integration for this new commit.
+   The .github workflows are unchanged; keep the ones already in your repository.
+6. Only publish/tag the release after both jobs pass. If integration fails,
+   send the new full test output and APISIX logs before publishing.
+
+Verification here: 93 LuaJIT unit tests passed.
+Live Docker/APISIX testing was unavailable in this sandbox.
+The fixture credential test-api-key is a public dummy key, not a production key.
+This is a corrected pre-release 0.1.0 package, not a new registry version.

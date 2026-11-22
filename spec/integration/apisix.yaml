@@ -13,7 +13,7 @@ routes:
     plugins:
       agent-guard:
         gateway_url: http://mock:9000/acr
-        api_key: "$env://ACR_API_KEY"
+        api_key: test-api-key # Public mock credential, never a production key.
         timeout_ms: 1000
         action_map:
           "POST /pay": payments.transfer.create
@@ -23,7 +23,7 @@ routes:
     plugins:
       agent-guard:
         gateway_url: http://mock:9000/acr
-        api_key: "$env://ACR_API_KEY"
+        api_key: test-api-key
   - id: consumer
     uri: /consumer
     methods: [POST]
@@ -32,7 +32,7 @@ routes:
       key-auth: {}
       agent-guard:
         gateway_url: http://mock:9000/acr
-        api_key: "$env://ACR_API_KEY"
+        api_key: test-api-key
         agent_source: consumer
         action_map:
           "POST /consumer": refunds.issue
@@ -44,7 +44,7 @@ routes:
       agent-guard:
         mode: verify
         gateway_url: http://mock:9000/acr
-        api_key: "$env://ACR_API_KEY"
+        api_key: test-api-key
         action_map:
           "POST /verified": payments.transfer.create
 

@@ -205,6 +205,15 @@ end
 ----------------------------------------------------------------------
 local state -- per-test mutable state, reset by setup()
 
+local original_getenv = os.getenv
+os.getenv = function(name) return state.env and state.env[name] end
+package.preload["apisix.secret"] = function()
+  return { fetch_by_uri = function(uri)
+    if state.secret_throw then error("secret provider failed") end
+    return state.secrets and state.secrets[uri]
+  end }
+end
+
 package.preload["resty.sha256"] = function()
   return { new = function()
     return {
@@ -270,6 +279,9 @@ local ctx
 local function setup(opts)
   opts = opts or {}
   state = {
+    env = opts.env,
+    secrets = opts.secrets,
+    secret_throw = opts.secret_throw,
     headers = opts.headers or {},
     body = opts.body or "",
     body_err = opts.body_err,
@@ -434,6 +446,33 @@ setup({ headers = { ["X-Agent-Id"] = "agent-a" }, body_err = "read failed" })
 ok(access(base_conf()) == 400 and state.http_calls == nil, "unreadable body refused with 400")
 
 -- 5. outcome reporting
+local acr_client = require "apisix.plugins.agent-guard.client"
+setup({ env = { ACR_API_KEY = "test-api-key" } })
+local env_conf = base_conf({ api_key = "$env://ACR_API_KEY" })
+for _, operation in ipairs({ "decideAction", "getGrantVerificationKey", "reportExecutionOutcome" }) do
+  acr_client.acr_call(env_conf, operation, {}, "test")
+  ok(state.last_http_request.headers["x-api-key"] == "test-api-key", operation .. " resolves the environment API key")
+end
+ok(env_conf.api_key == "$env://ACR_API_KEY", "resolution never mutates saved configuration")
+for _, key in ipairs({ "$env://MISSING", "$env://EMPTY", "$env://", "$env://BAD-NAME",
+    "$secret://vault/acr/missing", "$unknown://key", "{vault://env/ACR_API_KEY}" }) do
+  setup({ env = { EMPTY = "" } })
+  local answer, err = acr_client.acr_call(base_conf({ api_key = key }), "decideAction", {})
+  ok(answer == nil and err == "ACR API key unavailable" and state.http_calls == nil,
+    "unresolved reference fails closed without HTTP: " .. key)
+end
+setup({ secrets = { ["$secret://vault/acr/api_key"] = "test-vault-key" } })
+acr_client.acr_call(base_conf({ api_key = "$secret://vault/acr/api_key" }), "decideAction", {})
+ok(state.last_http_request.headers["x-api-key"] == "test-vault-key", "APISIX secret manager resolves the API key")
+setup({ secret_throw = true })
+ok(acr_client.acr_call(base_conf({ api_key = "$secret://vault/acr/api_key" }), "decideAction", {}) == nil
+  and state.http_calls == nil, "secret provider exceptions fail closed without HTTP")
+setup({ headers = { ["X-Agent-Id"] = "agent-a" } })
+ok(access(env_conf) == 503 and state.http_calls == nil, "missing environment key blocks forwarding with 503")
+setup({ env = { ACR_API_KEY = "bad\nheader" } })
+ok(acr_client.acr_call(env_conf, "decideAction", {}) == nil and state.http_calls == nil,
+  "control characters in a resolved key are refused")
+
 local function granted(status)
   setup({ headers = { ["X-Agent-Id"] = "agent-a" }, status = status,
     http_body = { decision = { effect = "grant", decisionId = "dec-9" } } })
@@ -525,5 +564,6 @@ ok(access(base_conf({ mode = "verify_jwt" })) == 403, "missing token refused")
 setup({ headers = { ["X-Agent-Id"] = "agent-a", Authorization = jwt({ sub = "agent-a" }) } })
 ok(access(base_conf({ mode = "verify_jwt" })) == 403, "token without acr claims refused")
 
+os.getenv = original_getenv
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then os.exit(1) end

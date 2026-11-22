@@ -68,6 +68,10 @@ curl http://127.0.0.1:9180/apisix/admin/routes/transfers -X PUT \
 
 Standalone (`apisix.yaml`) works the same way under `routes[].plugins`.
 
+The plugin resolves `$env://ACR_API_KEY` itself at each ACR call, including in standalone YAML mode. Supply the variable to the APISIX process and list it under `nginx_config.envs` so workers can read it. `$secret://` references use the configured APISIX secret manager. A missing, empty or unresolved key fails closed before any HTTP request; the literal reference is never sent as a credential. Kong's `{vault://env/...}` syntax is not supported.
+
+The integration suite uses the public dummy credential `test-api-key` for its mock server only. Never substitute a production key into that fixture.
+
 ## Configuration
 
 | Parameter | Default | Description |
