@@ -1,0 +1,27 @@
+name: integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  apisix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        apisix: ["3.11.0-debian"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run live APISIX suite
+        env:
+          APISIX_VERSION: ${{ matrix.apisix }}
+        run: docker compose -f spec/integration/docker-compose.yml up --abort-on-container-exit --exit-code-from tests
+      - name: APISIX logs on failure
+        if: failure()
+        run: docker compose -f spec/integration/docker-compose.yml logs apisix
+      - name: Clean up
+        if: always()
+        run: docker compose -f spec/integration/docker-compose.yml down -v
