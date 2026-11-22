@@ -1,0 +1,16 @@
+# Standalone (no etcd) APISIX for the live integration suite.
+deployment:
+  role: data_plane
+  role_data_plane:
+    config_provider: yaml
+apisix:
+  node_listen: 9080
+  # Loads apisix/plugins/agent-guard.lua from the mounted plugin folder.
+  extra_lua_path: "/opt/agent-guard/?.lua"
+nginx_config:
+  error_log_level: info
+  envs:
+    - ACR_API_KEY   # lets $env://ACR_API_KEY resolve inside workers
+plugins:
+  - key-auth
+  - agent-guard

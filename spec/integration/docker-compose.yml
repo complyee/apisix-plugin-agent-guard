@@ -1,0 +1,31 @@
+# Live Apache APISIX integration suite. Run from the repository root:
+#   docker compose -f spec/integration/docker-compose.yml up --abort-on-container-exit --exit-code-from tests
+services:
+  mock:
+    image: node:20-alpine
+    volumes: ["./mock:/app:ro"]
+    command: ["node", "/app/server.mjs"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9000/_health"]
+      interval: 2s
+      retries: 15
+
+  apisix:
+    image: apache/apisix:${APISIX_VERSION:-3.11.0-debian}
+    depends_on:
+      mock: { condition: service_healthy }
+    environment:
+      ACR_API_KEY: test-api-key
+    volumes:
+      - ./config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+      - ../../apisix:/opt/agent-guard/apisix:ro
+
+  tests:
+    image: node:20-alpine
+    depends_on: [apisix]
+    environment:
+      APISIX: http://apisix:9080
+      MOCK: http://mock:9000
+    volumes: ["./run.mjs:/app/run.mjs:ro"]
+    command: ["node", "/app/run.mjs"]

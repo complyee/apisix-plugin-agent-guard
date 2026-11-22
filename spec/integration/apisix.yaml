@@ -1,0 +1,56 @@
+# Standalone route configuration for the live integration suite.
+upstreams:
+  - id: mock
+    type: roundrobin
+    nodes:
+      "mock:9000": 1
+
+routes:
+  - id: decide
+    uri: /pay
+    methods: [POST]
+    upstream_id: mock
+    plugins:
+      agent-guard:
+        gateway_url: http://mock:9000/acr
+        api_key: "$env://ACR_API_KEY"
+        timeout_ms: 1000
+        action_map:
+          "POST /pay": payments.transfer.create
+  - id: unmapped
+    uri: /unmapped
+    upstream_id: mock
+    plugins:
+      agent-guard:
+        gateway_url: http://mock:9000/acr
+        api_key: "$env://ACR_API_KEY"
+  - id: consumer
+    uri: /consumer
+    methods: [POST]
+    upstream_id: mock
+    plugins:
+      key-auth: {}
+      agent-guard:
+        gateway_url: http://mock:9000/acr
+        api_key: "$env://ACR_API_KEY"
+        agent_source: consumer
+        action_map:
+          "POST /consumer": refunds.issue
+  - id: verified
+    uri: /verified
+    methods: [POST]
+    upstream_id: mock
+    plugins:
+      agent-guard:
+        mode: verify
+        gateway_url: http://mock:9000/acr
+        api_key: "$env://ACR_API_KEY"
+        action_map:
+          "POST /verified": payments.transfer.create
+
+consumers:
+  - username: agent_refund
+    plugins:
+      key-auth:
+        key: test-consumer-key
+#END
